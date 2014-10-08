@@ -1,0 +1,200 @@
+<html>
+<head>
+	<style type="text/css">
+		#cloud-overlay img {
+		    display: none;
+		    position: absolute;
+		  /*  height: 100%;
+		    width: 100%;*/
+		}
+		#cloud-overlay img:first-child {
+		    display: block;
+		}
+		.static-image{
+			position: absolute;
+		}
+		.circle{position: absolute;z-index:1000;width:40px;height:40px;border-radius:50%;font-size:20px;line-height:40px;text-align:center;border:8px solid rgba(255, 255, 255, 0.71);}
+	</style>
+</head>
+<body>
+	<div class="circle">
+		&#8673;
+	</div>
+	<div>
+		<img class="static-image" src="http://www.bom.gov.au/products/radar_transparencies/IDR713.background.png">
+	</div>
+	<div id="cloud-overlay">
+		<img src="" />
+		<img src="" />
+		<img src="" />
+		<img src="" />
+		<img src="" />
+		<img src="" />
+	</div>
+	<div>
+		<img class="static-image" src="http://www.bom.gov.au/products/radar_transparencies/IDR713.locations.png">
+		<img class="static-image" src="http://www.bom.gov.au/products/radar_transparencies/IDR713.range.png">
+	</div>
+</body>
+
+
+<script>
+	function some_func () {
+		alert('asdf')
+	}
+
+	timeToFileConverter = (function () {
+		var ftpTimeMinutes = Array(3, 9, 15, 21, 27, 33, 39, 45, 51, 56),
+		fileTimestampMinutes = Array('00', '06', '12', '18', '24', '30', '36', '42', '48', '54'),
+		tempArr = [],
+		index = 0,
+		time;
+		console.log('ftpTimeMinutes       ' + "3   9   15  21   27   33   39   45   51  56");
+		console.log('fileTimestampMinutes ' + "00  06  12  18   24   30   36   42   48  54");
+
+		function findFtpTimeArrayIndex(){
+			time = new Date();
+			var currentMinutes = time.getMinutes();
+			// var currentMinutes = 57;
+			var counter = 0;
+			for(var i = 0, len = ftpTimeMinutes.length; i < len; i++) {
+				counter ++;
+				if(ftpTimeMinutes[i] >= currentMinutes || i === len-1){
+					// i === len-1 catches when minutes is 55, 56, 57,58, 59
+					index = i - 1;
+					// -1 indicates 0 - 2 minutes or start of the hour so we need to go back an hour
+					if(index === -1){
+						index = indexOfLastElement(ftpTimeMinutes);
+						changeTimeToPreviousHour();
+					}
+					break;
+				}
+			}
+			console.log('counter: ' + counter)
+
+		}
+
+		function buildFileTimeStamp () {
+			// builds timestamp in: 201410030048.png  (2014 10 03 0048)
+			for(var i = 0; i < 6; i++) { 
+				tempArr[i] = buildYearMonthDayHourMinuteTimeStamp(fileTimestampMinutes[index]);
+				index--;
+				if(index < 0){
+					index = indexOfLastElement(fileTimestampMinutes);
+					changeTimeToPreviousHour();
+				}
+			}
+			var numbers = [1, 4, 9];
+			var doubles = numbers.map(function(num) {
+			  return num * 2;
+			});
+			console.log('tempArr: ' + tempArr.map(function(num){ return num.slice(-4)}));
+		}
+
+		function buildYearMonthDayHourMinuteTimeStamp (minutes) {
+			return formatISOTimeToString() + minutes
+		}
+
+		function formatISOTimeToString () {
+			return time.toISOString().slice(0,13).replace(/T|:|-/g,"")
+		}
+
+		function changeTimeToPreviousHour () {
+			time.setHours(new Date().getHours() - 1);
+		}
+
+		function indexOfLastElement (array) {
+			return array.length-1;
+		}
+
+
+
+		function getIndex(){
+			return index;
+		}
+
+		function getTempArr () {
+			return tempArr;
+		}
+
+		function appendFilePrefix () {
+			// var timeWithoutMinutes = time.toISOString().slice(0,13).replace(/T|:|-/g,"");
+			tempArr.reverse();
+			for(var i = 0, len = tempArr.length; i < len; i++) { 
+				tempArr[i] = "ftp://ftp2.bom.gov.au/anon/gen/radar/IDR713.T." + tempArr[i] + ".png";
+				// tempArr[i] = "ftp://ftp2.bom.gov.au/anon/gen/radar/IDR713.T." + timeWithoutMinutes + tempArr[i] + ".png";
+			};
+		}
+
+		function getLatestImageFiles(){
+			findFtpTimeArrayIndex();
+			buildFileTimeStamp();
+			appendFilePrefix();
+			return tempArr;
+		}
+
+		function fillImageSource () {
+			fileNameArray = getLatestImageFiles();
+			var elements = document.getElementById('cloud-overlay').children
+			for(var i = 0, len = elements.length; i < len; i++) {
+				elements[i].src=fileNameArray[i];
+			}
+		}
+
+		return {
+			index: getIndex,
+			minutes: buildFileTimeStamp,
+			// timeIndex: findFtpTimeArrayIndex,
+			temp: getTempArr,
+			getLatestImageFiles: getLatestImageFiles,
+			insertImageSource: fillImageSource
+		};
+
+	})();
+
+	
+	function cycleImages (delay) {
+		var imgs = document.getElementById('cloud-overlay').getElementsByTagName('img'),
+	        index = 0;
+	   setInterval(function () {
+	        imgs[index].style.display = 'none';
+	        index = (index + 1) % imgs.length;
+	        imgs[index].style.display = 'block';
+	    }, delay);
+	}
+
+
+	function loadSydAirportJSON() {
+	    var xmlhttp = new XMLHttpRequest();
+	   
+	    xmlhttp.onreadystatechange = function() {
+	        if (xmlhttp.readyState == 4 ) {
+	           if(xmlhttp.status == 200){
+	           		console.log(xmlhttp.responseText);
+	               // document.getElementById("myDiv").innerHTML = xmlhttp.responseText;
+	           }
+	           else if(xmlhttp.status == 400) {
+	              console.log('There was an error 400')
+	           }
+	           else {
+	              console.log('something else other than 200 was returned')
+	           }
+	        }
+	    }
+
+	    xmlhttp.open("GET", "http://www.bom.gov.au/fwo/IDN60901/IDN60901.94767.json?callback=some_func", true);
+	    xmlhttp.send();
+	}
+
+	(function(){
+		timeToFileConverter.insertImageSource();
+		cycleImages(400);
+		// console.log(timeToFileConverter.getLatestImageFiles());
+		console.log(new Date().toUTCString());
+		// loadSydAirportJSON();
+
+		// window.setInterval(cycleImages, 250);
+	})();
+</script>
+
+</html>
